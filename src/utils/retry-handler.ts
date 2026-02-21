@@ -67,6 +67,8 @@ export function buildRetryMessage(): any {
         zoom_access_token_url: null,
         speech_to_text_provider: params.speech_to_text_provider ?? null,
         speech_to_text_api_key: params.speech_to_text_api_key ?? null,
+        speech_to_text_region: params.speech_to_text_region ?? null,
+        speech_to_text_custom_params: params.speech_to_text_custom_params ?? null,
         custom_branding_bot_path: params.custom_branding_bot_path ?? null,
         streaming_input: params.streaming_input ?? null,
         streaming_output: params.streaming_output ?? null,

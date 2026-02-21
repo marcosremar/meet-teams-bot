@@ -1,6 +1,12 @@
 import { BrowserContext, Page } from '@playwright/test'
 
-type SpeechToTextProvider = 'Default' | 'Gladia' | 'RunPod'
+type SpeechToTextProvider =
+    | 'gladia'
+    | 'deepgram'
+    | 'assemblyai'
+    | 'speechmatics'
+    | 'soniox'
+    | 'none'
 
 // Support both PascalCase and snake_case for recording_mode
 export type RecordingMode =
@@ -56,6 +62,8 @@ export type MeetingParams = {
     translation_lang?: string
     speech_to_text_provider?: SpeechToTextProvider
     speech_to_text_api_key?: string
+    speech_to_text_region?: string | null
+    speech_to_text_custom_params?: Record<string, unknown> | null
     streaming_input?: string
     streaming_output?: string
     streaming_audio_frequency?: number

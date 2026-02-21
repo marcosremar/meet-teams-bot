@@ -9,7 +9,7 @@
     "email": "bot@example.com",
     "vocabulary": [],
     "force_lang": false,
-    "speech_to_text_provider": "Default",
+    "speech_to_text_provider": "none",
     "speech_to_text_api_key": "",
     "streaming_input": "",
     "streaming_output": "",
