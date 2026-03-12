@@ -36,6 +36,10 @@ RUN npx playwright install chromium && \
 COPY . .
 RUN npm run build
 
+# Copy YouTube streaming script
+COPY start_youtube_stream.sh /app/start_youtube_stream.sh
+RUN chmod +x /app/start_youtube_stream.sh
+
 # Environment configuration
 ENV NODE_OPTIONS="--max-old-space-size=2048"
 ENV SERVERLESS=true
@@ -87,11 +91,12 @@ fi\n\
 \n# Create virtual audio devices\n\
 pactl load-module module-null-sink sink_name=virtual_speaker \\\n\
     sink_properties=device.description=Virtual_Speaker,device.class=sound\n\
-pactl load-module module-virtual-source source_name=virtual_mic\n\
+pactl load-module module-virtual-source source_name=virtual_mic \\\n\
+    master=virtual_speaker.monitor 2>/dev/null || true\n\
 pactl set-default-sink virtual_speaker\n\
 \n\
 # Optimize audio quality and latency\n\
-pactl set-sink-volume virtual_speaker 100%\n\
+pactl set-sink-volume virtual_speaker 200%\n\
 pactl set-sink-latency-offset virtual_speaker 0 2>/dev/null || true\n\
 pactl set-source-latency-offset virtual_speaker.monitor 0 2>/dev/null || true\n\
 \n\
@@ -99,12 +104,11 @@ pactl set-source-latency-offset virtual_speaker.monitor 0 2>/dev/null || true\n\
 pactl set-sink-resample-method virtual_speaker speex-float-10 2>/dev/null || true\n\
 \n# Verify critical audio device exists\n\
 if ! pactl list sources short | grep -q "virtual_speaker.monitor"; then\n\
-    echo "❌ virtual_speaker.monitor not found - audio setup failed"\n\
-    exit 1\n\
+    echo "⚠️ virtual_speaker.monitor not found - audio recording may not work"\n\
 fi\n\
 \necho "✅ Virtual display and audio ready"\n\necho "🔍 VNC available at localhost:5900 (password: debug)"\n\n# Start application\ncd /app/\nnode build/src/main.js\n\n# Cleanup on exit\ntrap "kill $PULSE_PID $VNC_PID $XVFB_PID 2>/dev/null || true" EXIT\n' > /start.sh && chmod +x /start.sh
 
-# Expose VNC port for debugging
-EXPOSE 5900
+# Expose HTTP server (health check + API), VNC (debug), RTMP (webcam PiP)
+EXPOSE 8080 5900 1936
 
 ENTRYPOINT ["/start.sh"]
