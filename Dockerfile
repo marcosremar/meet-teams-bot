@@ -77,14 +77,14 @@ unclutter -display :99 -idle 0 -root &\n\
 x11vnc -display :99 -forever -passwd debug -listen 0.0.0.0 -rfbport 5900 \\\n    -shared -noxdamage -noxfixes -noscr -fixscreen 3 -bg -o /tmp/x11vnc.log \\\n    -nocursor -noxfixes -nomodtweak &\n\
 VNC_PID=$!\n\
 \n# Initialize PulseAudio\n\
-pulseaudio --start --log-target=stderr --log-level=notice &\n\
+pulseaudio --start --exit-idle-time=-1 --log-target=stderr --log-level=notice &\n\
 PULSE_PID=$!\n\
 sleep 4\n\
 \n# Ensure PulseAudio is ready\n\
 if ! pactl info >/dev/null 2>&1; then\n\
     pulseaudio --kill || true\n\
     sleep 2\n\
-    pulseaudio --start --log-target=stderr --log-level=notice &\n\
+    pulseaudio --start --exit-idle-time=-1 --log-target=stderr --log-level=notice &\n\
     PULSE_PID=$!\n\
     sleep 3\n\
 fi\n\
