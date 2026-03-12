@@ -84,6 +84,12 @@ export async function openBrowser(
                 '--enable-logging=stderr',
                 '--log-level=1',
                 '--vmodule=*audio*=3', // Enable audio debug logging
+
+                // Virtual camera injection (Y4M FIFO)
+                ...(process.env.CAMERA_PIPE_PATH ? [
+                    '--use-fake-device-for-media-stream',
+                    `--use-file-for-fake-video-capture=${process.env.CAMERA_PIPE_PATH}`,
+                ] : []),
             ],
             slowMo: slowMo ? 100 : undefined,
             permissions: ['microphone', 'camera'],

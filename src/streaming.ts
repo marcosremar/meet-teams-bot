@@ -9,6 +9,8 @@ import { PathManager } from './utils/PathManager'
 import { formatError } from './utils/Logger'
 
 const DEFAULT_SAMPLE_RATE: number = 24_000
+const SUBTITLE_FILE = '/tmp/subtitle.txt'
+const SUBTITLE_CLEAR_DELAY_MS = 5_000
 
 /**
  * Streaming class for real-time audio output to external services
@@ -63,20 +65,30 @@ export class Streaming {
     private lastWsNotReadyLogTime: number = 0
     private readonly WS_NOT_READY_LOG_INTERVAL_MS: number = 10000 // Log at most every 10 seconds
 
+    // Subtitle file for FFmpeg drawtext overlay (server mode)
+    private subtitleClearTimeout: NodeJS.Timeout | null = null
+
     // Debug: Save streamed audio to file
     private debugAudioStream: fs.WriteStream | null = null
     private debugAudioBytesWritten: number = 0
     private readonly debugAudioEnabled: boolean = process.env.DEBUG_AUDIO === 'true'
+
+    private sourceLang: string
+    private targetLang: string
 
     constructor(
         input: string | undefined,
         output: string | undefined,
         sample_rate: number | undefined,
         bot_id: string,
+        source_lang?: string,
+        target_lang?: string,
     ) {
         this.inputUrl = input
         this.outputUrl = output
         this.botId = bot_id
+        this.sourceLang = source_lang || 'pt'
+        this.targetLang = target_lang || 'en'
 
         if (sample_rate) {
             this.sample_rate = sample_rate
@@ -285,6 +297,8 @@ export class Streaming {
                         bot_id: this.botId,
                         offset: 0.0,
                         sample_rate: this.sample_rate,
+                        source_lang: this.sourceLang,
+                        target_lang: this.targetLang,
                     }
                     console.log(`🤝 Sending handshake to ${this.outputUrl}: ${JSON.stringify(handshake)}`)
                     this.output_ws.send(JSON.stringify(handshake))
@@ -296,6 +310,14 @@ export class Streaming {
                     if (this.debugAudioEnabled) {
                         this.initDebugAudioFile()
                     }
+                }
+            })
+
+            // Listen for text messages from GPU pod (translation results)
+            this.output_ws.on('message', (data: RawData) => {
+                if (typeof data === 'string' || (data instanceof Buffer && data[0] === 0x7B /* '{' */)) {
+                    const text = data.toString()
+                    this.handleTranslationMessage(text)
                 }
             })
 
@@ -444,6 +466,12 @@ export class Streaming {
         }
 
         console.log('🛑 Stopping simplified streaming service...')
+
+        // Clear subtitle timer
+        if (this.subtitleClearTimeout) {
+            clearTimeout(this.subtitleClearTimeout)
+            this.subtitleClearTimeout = null
+        }
 
         // Finalize debug audio file (wait for WAV header to be written)
         await this.finalizeDebugAudioFile()
@@ -604,6 +632,48 @@ export class Streaming {
         })
 
         return stream
+    }
+
+    /**
+     * Write subtitle text to file for FFmpeg drawtext overlay (server mode).
+     * FFmpeg reads this file every frame via reload=1.
+     * Auto-clears after SUBTITLE_CLEAR_DELAY_MS.
+     */
+    private writeSubtitleFile(text: string): void {
+        try {
+            fs.writeFileSync(SUBTITLE_FILE, text, 'utf-8')
+            console.log(`📝 [Subtitle] ${text.substring(0, 80)}`)
+
+            // Auto-clear after delay
+            if (this.subtitleClearTimeout) {
+                clearTimeout(this.subtitleClearTimeout)
+            }
+            this.subtitleClearTimeout = setTimeout(() => {
+                try {
+                    fs.writeFileSync(SUBTITLE_FILE, '', 'utf-8')
+                } catch { /* best effort */ }
+                this.subtitleClearTimeout = null
+            }, SUBTITLE_CLEAR_DELAY_MS)
+        } catch (error) {
+            console.error('[Subtitle] Failed to write subtitle file:', formatError(error))
+        }
+    }
+
+    /**
+     * Try to parse incoming WS messages as JSON translation results.
+     * Expected format: {"type": "result", "translation": "Hello world", "transcription": "Bonjour le monde"}
+     */
+    private handleTranslationMessage(data: string): boolean {
+        try {
+            const msg = JSON.parse(data)
+            if (msg.type === 'result' && msg.translation) {
+                this.writeSubtitleFile(msg.translation)
+                return true
+            }
+        } catch {
+            // Not JSON — ignore
+        }
+        return false
     }
 
     /**

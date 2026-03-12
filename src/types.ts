@@ -92,6 +92,8 @@ export type MeetingParams = {
         aws_s3_log_bucket: string
     } | null
     // -----------------------------------------------------------
+    _source_lang?: string
+    _target_lang?: string
     extra?: any
     zoom_sdk_id?: string
     zoom_sdk_pwd?: string

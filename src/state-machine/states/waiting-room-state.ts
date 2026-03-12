@@ -43,6 +43,8 @@ export class WaitingRoomState extends BaseState {
                     GLOBAL.get().streaming_output,
                     GLOBAL.get().streaming_audio_frequency,
                     GLOBAL.get().bot_uuid,
+                    GLOBAL.get()._source_lang,
+                    GLOBAL.get()._target_lang,
                 )
             }
 
