@@ -62,10 +62,36 @@ export class TeamsProvider implements MeetingProviderInterface {
         }
 
         try {
-            await page.goto(link, {
-                waitUntil: 'load', 
-                timeout: 15000,
+            // Intercept light-meetings redirect: Teams redirects anonymous users to a
+            // "light" interface that fails to render in headless Chromium. When detected,
+            // navigate back to the v2 URL which works correctly.
+            const origLink = link
+            let lightRedirectHandled = false
+            page.on('framenavigated', async (frame) => {
+                if (frame === page.mainFrame() && !lightRedirectHandled) {
+                    const url = frame.url()
+                    if (url.includes('light-meetings')) {
+                        lightRedirectHandled = true
+                        console.log('[BabelCast] Light-meetings redirect detected, navigating back to v2...')
+                        try {
+                            await page.goto(origLink, {
+                                waitUntil: 'domcontentloaded',
+                                timeout: 60000,
+                            })
+                        } catch (e) {
+                            console.warn('[BabelCast] Re-navigation to v2 failed:', e instanceof Error ? e.message : e)
+                        }
+                    }
+                }
             })
+
+            await page.goto(link, {
+                waitUntil: 'domcontentloaded',
+                timeout: 60000,
+            })
+
+            // Wait for Teams SPA to render (v2 interface needs time to bootstrap)
+            await new Promise(r => setTimeout(r, 10000))
 
             // Check for page freeze after goto
             let pageFrozen = false

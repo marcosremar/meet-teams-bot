@@ -29,6 +29,7 @@ export async function openBrowser(
             viewport: { width, height },
             executablePath: chromePath,
             locale: 'en-US', // Set locale for Playwright context
+            ignoreDefaultArgs: ['--enable-automation'], // Prevent Teams from detecting automation and redirecting to broken light interface
             args: [
                 // Window size and position - must match Xvfb display exactly
                 `--window-size=${windowWidth},${windowHeight}`,
